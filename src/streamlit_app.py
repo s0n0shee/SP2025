@@ -12,6 +12,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RL
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from datetime import datetime
+import pandas as pd
 
 st.set_page_config(
     page_title="Explainable Multi-classification of Retinal Diseases Using Ensembled Transfer Learning Models and Grad-CAM",
@@ -488,53 +489,52 @@ with tabs[0]:
     """, unsafe_allow_html=True)
 
     if uploaded_file is not None:
-        image = Image.open(uploaded_file).convert("RGB").resize(IMG_SIZE)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-            image.save(tmp.name)
-            temp_path = tmp.name
+        try:
+            image = Image.open(uploaded_file).convert("RGB").resize(IMG_SIZE)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                image.save(tmp.name)
+                temp_path = tmp.name
 
-        with st.spinner("Classifying and generating Grad-CAM heatmap..."):
-            label, confidence, avg_probs, overlay, model_preds = ensemble_predict_with_densenet_gradcam(temp_path)
+            with st.spinner("Classifying and generating Grad-CAM heatmap..."):
+                label, confidence, avg_probs, overlay, model_preds = ensemble_predict_with_densenet_gradcam(temp_path)
 
-        # --- Display layout ---
-        col1, col2, col3 = st.columns([1, 1, 1.1], gap="large")
-        with col1:
-            st.image(image, caption="Uploaded Image", use_container_width=True)
-        with col2:
-            st.image(overlay, caption="Grad-CAM Heatmap", use_container_width=True)          
-        with col3:
-            desc = CLASS_DESCRIPTIONS[label.lower()]
-            cite_indices = CLASS_CITATION_INDICES[label.lower()]
-            st.markdown(f"""
-                <div class='disease-card'>
-                    <div class='disease-title'>{CLASS_DISPLAY_NAMES[label.lower()]}</div>
-                    <h4>Class Prediction</h4>
-                    <div class='confidence-score'>
-                        Confidence: <b>{confidence:.3f}</b>
-                    </div>                    <div class='description-section'>
-                        <b>Description</b><br>
-                        <p style="text-align: justify; margin: 0.5rem 0;">{desc}{' '.join([f"<a href='#ref{idx}' class='desc-cite' id='desc-cite-{idx}'>[{idx}]</a>" for idx in cite_indices]) if cite_indices else ''}</p>
+            # --- Display layout ---
+            col1, col2, col3 = st.columns([1, 1, 1.1], gap="large")
+            with col1:
+                st.image(image, caption="Uploaded Image", use_container_width=True)
+            with col2:
+                st.image(overlay, caption="Grad-CAM Heatmap", use_container_width=True)          
+            with col3:
+                desc = CLASS_DESCRIPTIONS[label.lower()]
+                cite_indices = CLASS_CITATION_INDICES[label.lower()]
+                st.markdown(f"""
+                    <div class='disease-card'>
+                        <div class='disease-title'>{CLASS_DISPLAY_NAMES[label.lower()]}</div>
+                        <h4>Class Prediction</h4>
+                        <div class='confidence-score'>
+                            Confidence: <b>{confidence:.3f}</b>
+                        </div>                    <div class='description-section'>
+                            <b>Description</b><br>
+                            <p style="text-align: justify; margin: 0.5rem 0;">{desc}{' '.join([f"<a href='#ref{idx}' class='desc-cite' id='desc-cite-{idx}'>[{idx}]</a>" for idx in cite_indices]) if cite_indices else ''}</p>
+                        </div>
                     </div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-        # --- Probability Table ---
-        st.markdown("<div class='table-section'>", unsafe_allow_html=True)
-        st.markdown("<h4>Model & Ensemble Class Probabilities</h4>", unsafe_allow_html=True)
-        class_names = [CLASS_TABLE_DISPLAY_NAMES[c] for c in CLASS_NAMES]
-        table_data = []
-        for i, pred in enumerate(model_preds):
-            row = [float(f"{pred[0][j]:.4f}") for j in range(len(CLASS_NAMES))]
-            table_data.append(row)
-        avg_row = [float(f"{avg_probs[j]:.4f}") for j in range(len(CLASS_NAMES))]
-        model_names = [m['name'] for m in MODEL_CONFIGS]
-        import pandas as pd
-        df = pd.DataFrame(table_data, columns=class_names, index=model_names)
-        df.loc['Ensemble Avg'] = avg_row
-        df = df.rename_axis('Model').reset_index()
-        def highlight_ensemble(s):
-            return ['font-weight: bold' if v == 'Ensemble Avg' else '' for v in s]        # Add CSS for table column width and text wrapping
-        st.markdown("""            <style>            .stDataFrame [data-testid=\"stDataFrameDataCell\"] div,
+                """, unsafe_allow_html=True)
+            # --- Probability Table ---
+            st.markdown("<div class='table-section'>", unsafe_allow_html=True)
+            st.markdown("<h4>Model & Ensemble Class Probabilities</h4>", unsafe_allow_html=True)
+            class_names = [CLASS_TABLE_DISPLAY_NAMES[c] for c in CLASS_NAMES]
+            table_data = []
+            for i, pred in enumerate(model_preds):
+                row = [float(f"{pred[0][j]:.4f}") for j in range(len(CLASS_NAMES))]
+                table_data.append(row)
+            avg_row = [float(f"{avg_probs[j]:.4f}") for j in range(len(CLASS_NAMES))]
+            model_names = [m['name'] for m in MODEL_CONFIGS]
+            df = pd.DataFrame(table_data, columns=class_names, index=model_names)
+            df.loc['Ensemble Avg'] = avg_row
+            df = df.rename_axis('Model').reset_index()
+            def highlight_ensemble(s):
+                return ['font-weight: bold' if v == 'Ensemble Avg' else '' for v in s]        # Add CSS for table column width and text wrapping
+            st.markdown("""            <style>            .stDataFrame [data-testid=\"stDataFrameDataCell\"] div,
             .stDataFrame [data-testid=\"stDataFrameHeaderCell\"] div {
                 text-align: center !important;
                 justify-content: center !important;
@@ -574,13 +574,9 @@ with tabs[0]:
             }
             </style>
         """, unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
         
-        st.dataframe(
-            df.style.apply(highlight_ensemble, subset=['Model'])
-            .format(precision=4),
-            use_container_width=True,
-            hide_index=True
-        )        
         st.markdown("""
         <style>
         div[data-testid="stDownloadButton"] button {
