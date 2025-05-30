@@ -5,7 +5,7 @@ import io
 import tempfile
 import os
 import matplotlib.pyplot as plt
-from ensemble_backend import ensemble_predict_with_densenet_gradcam, IMG_SIZE, CLASS_NAMES, MODEL_CONFIGS
+from src.ensemble_backend import ensemble_predict_with_densenet_gradcam, IMG_SIZE, CLASS_NAMES, MODEL_CONFIGS
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table
