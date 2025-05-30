@@ -37,6 +37,27 @@ MODEL_CONFIGS = [
     }
 ]
 
+try:
+    import gdown
+except ImportError:
+    gdown = None
+
+MODEL_GDRIVE_IDS = {
+    # Placeholders: Replace with your actual Google Drive file IDs
+    "DenseNet201Optimized_final_model.keras": "18_LC_qVPfrYn4Fydah353gFA5xvbbTvZ",  
+    "EfficientNetB5_final_model.keras": "18T1iUl03ABjJYNJ_TBjX5FMavQQzUvXn",      
+    "EfficientNetB5Optimized_final_model.keras": "1rUAcIkUyEU-o2dbriNXRTel3XLo5tYtl"  
+}
+
+# Download models from Google Drive if not found locally (optional fallback)
+if gdown is not None:
+    for fname, file_id in MODEL_GDRIVE_IDS.items():
+        fpath = os.path.join(MODEL_DIR, fname)
+        if not os.path.exists(fpath) and file_id and not file_id.startswith('<'):
+            url = f"https://drive.google.com/uc?id={file_id}"
+            print(f"Downloading {fname} from Google Drive...")
+            gdown.download(url, fpath, quiet=False)
+
 # --- Load Models ---
 print("🔄 Loading models...")
 models = []

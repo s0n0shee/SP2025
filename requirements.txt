@@ -6,3 +6,4 @@ opencv-python
 reportlab
 tensorflow==2.18.0
 pandas
+gdown
